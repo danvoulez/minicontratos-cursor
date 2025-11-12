@@ -24,8 +24,8 @@ export function MessageList({ messages }: MessageListProps) {
       <div className="flex-1 flex items-center justify-center text-muted-foreground">
         <div className="text-center space-y-4">
           <div className="flex justify-center">
-            <div className="h-32 w-32 rounded-full bg-[#00C853] flex items-start justify-center pt-3 shadow-lg">
-              <span className="text-8xl font-bold text-white leading-none">m</span>
+            <div className="h-32 w-32 rounded-full bg-[#00C853] flex items-start justify-center pt-2 shadow-lg">
+              <span className="text-7xl font-bold text-white leading-none">m</span>
             </div>
           </div>
           <div className="space-y-1">

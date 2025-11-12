@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react"
 import { Button } from "./ui/button"
-import { ScrollArea } from "./ui/scroll-area"
 import { Input } from "./ui/input"
 import { Avatar, AvatarFallback } from "./ui/avatar"
 import {
@@ -61,6 +60,7 @@ import {
   DialogTrigger,
 } from "./ui/dialog"
 import { Separator } from "./ui/separator"
+import { SettingsDialog } from "./settings-dialog"
 
 interface ConversationListProps {
   conversations: Conversation[]
@@ -75,6 +75,7 @@ interface ConversationListProps {
   onMoveToFolder: (conversationId: string, folderId: string | null) => void
   userName?: string
   userRole?: string
+  onFlowClick?: (flowName: string) => void
 }
 
 export function ConversationList({
@@ -90,6 +91,7 @@ export function ConversationList({
   onMoveToFolder,
   userName = "User",
   userRole = "Member",
+  onFlowClick,
 }: ConversationListProps) {
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set())
   const [newFolderDialogOpen, setNewFolderDialogOpen] = useState(false)
@@ -99,6 +101,7 @@ export function ConversationList({
   const [searchQuery, setSearchQuery] = useState("")
   const [isSearching, setIsSearching] = useState(false)
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(["chatHistory"]))
+  const [settingsOpen, setSettingsOpen] = useState(false)
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -274,29 +277,21 @@ export function ConversationList({
 
   return (
     <div className="flex flex-col h-full">
-      <div className="p-6 flex flex-col items-center">
-        <Avatar className="h-14 w-14 ring-2 ring-primary/20 mb-3">
-          <AvatarFallback className="bg-gradient-to-br from-emerald-500 to-emerald-600 text-white font-semibold text-lg">
+      <div className="p-4 flex items-center gap-3">
+        <Avatar className="h-12 w-12 ring-2 ring-primary/20">
+          <AvatarFallback className="bg-gradient-to-br from-emerald-500 to-emerald-600 text-white font-semibold text-base">
             {getUserInitials(userName)}
           </AvatarFallback>
         </Avatar>
-        <div className="text-center">
-          <div className="font-semibold text-base mb-0.5">{userName}</div>
+        <div className="flex-1">
+          <div className="font-semibold text-sm">{userName}</div>
           <div className="text-xs text-muted-foreground">{userRole}</div>
         </div>
       </div>
 
-      <Separator className="mb-4" />
+      <Separator className="mb-3" />
 
-      <div className="px-4 pb-4 space-y-2">
-        <Button
-          onClick={onNewConversation}
-          className="w-full justify-center gap-2 h-10 bg-emerald-600 hover:bg-emerald-700"
-        >
-          <Plus className="h-4 w-4" />
-          New Chat
-        </Button>
-
+      <div className="px-4 pb-3 space-y-2">
         <div className="flex gap-2">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -355,11 +350,19 @@ export function ConversationList({
             </DialogContent>
           </Dialog>
         </div>
+
+        <Button
+          onClick={onNewConversation}
+          className="w-full justify-center gap-2 h-10 bg-emerald-600 hover:bg-emerald-700"
+        >
+          <Plus className="h-4 w-4" />
+          New Chat
+        </Button>
       </div>
 
       <Separator className="mb-2" />
 
-      <ScrollArea className="flex-1 px-2">
+      <div className="flex-1 overflow-y-auto px-2">
         <div className="space-y-1 pb-2">
           <div>
             <button
@@ -383,6 +386,7 @@ export function ConversationList({
                   return (
                     <button
                       key={flow.id}
+                      onClick={() => onFlowClick?.(flow.name)}
                       className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-muted/50 transition-colors group"
                     >
                       <div className={`p-2 rounded-lg bg-muted/50 ${flow.color}`}>
@@ -421,6 +425,7 @@ export function ConversationList({
                   return (
                     <button
                       key={flow.id}
+                      onClick={() => onFlowClick?.(flow.name)}
                       className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-muted/50 transition-colors group"
                     >
                       <div className={`p-2 rounded-lg bg-muted/50 ${flow.color}`}>
@@ -597,13 +602,18 @@ export function ConversationList({
             )}
           </div>
         </div>
-      </ScrollArea>
+      </div>
 
       <div className="p-3 border-t mt-auto">
-        <Button variant="ghost" className="w-full justify-start gap-2.5 h-10 hover:bg-muted/50">
+        <Button
+          variant="ghost"
+          className="w-full justify-start gap-2.5 h-10 hover:bg-muted/50"
+          onClick={() => setSettingsOpen(true)}
+        >
           <Settings className="h-4 w-4" />
           <span className="text-sm font-medium">Settings</span>
         </Button>
+        <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
       </div>
     </div>
   )

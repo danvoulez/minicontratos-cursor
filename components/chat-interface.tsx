@@ -14,12 +14,14 @@ import {
   deleteConversation,
   updateConversation,
   getMessages,
-  sendMessage,
   getFolders,
   createFolder,
   deleteFolder,
   updateFolder,
 } from "@/app/actions/logline-actions"
+import { createLogLineClient } from "@/lib/logline"
+import { processUserMessage } from "@/app/actions/agent-actions"
+import type { AgentResponse } from "@/lib/agent"
 
 export type Message = {
   id: string
@@ -45,7 +47,9 @@ export type Folder = {
 
 export function ChatInterface() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
-  const [authData, setAuthData] = useState<{ ownerId: string; tenantId: string } | null>(null)
+  const [authData, setAuthData] = useState<{ email: string; token: string; ownerId: string; tenantId: string } | null>(
+    null,
+  )
   const [conversations, setConversations] = useState<Conversation[]>([])
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null)
   const [sidebarOpen, setSidebarOpen] = useState(true)
@@ -81,10 +85,7 @@ export function ChatInterface() {
     try {
       setLoading(true)
 
-      const [foldersRes, conversationsRes] = await Promise.all([
-        getFolders(authData.ownerId, authData.tenantId),
-        getConversations(authData.ownerId, authData.tenantId),
-      ])
+      const [foldersRes, conversationsRes] = await Promise.all([getFolders(), getConversations()])
 
       if (!foldersRes.success || !conversationsRes.success) {
         throw new Error(foldersRes.error || conversationsRes.error || "Failed to load data")
@@ -117,7 +118,9 @@ export function ChatInterface() {
       toast({
         title: "Error",
         description:
-          error instanceof Error ? error.message : "Failed to load conversations. Check API key in Vars section.",
+          error instanceof Error
+            ? error.message
+            : "Failed to load conversations. Check LOGLINE_API_KEY in Vars section.",
         variant: "destructive",
       })
     } finally {
@@ -130,7 +133,7 @@ export function ChatInterface() {
 
     try {
       setLoadingMessages(true)
-      const response = await getMessages(authData.ownerId, authData.tenantId, conversationId, 50)
+      const response = await getMessages(conversationId, 50)
 
       if (!response.success) {
         throw new Error(response.error)
@@ -169,27 +172,36 @@ export function ChatInterface() {
     if (!authData) return
 
     try {
-      const response = await createConversation(authData.ownerId, authData.tenantId, "New Conversation")
+      console.log("[v0] handleNewConversation called")
+      const response = await createConversation("New Conversation")
+      console.log("[v0] handleNewConversation response:", response)
 
-      if (!response.success || !response.data) {
-        throw new Error(response.error)
+      if (!response.success) {
+        throw new Error(response.error || "Failed to create conversation")
+      }
+
+      if (!response.data) {
+        throw new Error("No conversation data returned")
       }
 
       const newConversation: Conversation = {
         id: response.data.id,
-        title: response.data.title,
+        title: response.data.title || "New Conversation",
         messages: [],
         createdAt: new Date(),
         updatedAt: new Date(),
         folderId: null,
       }
+
+      console.log("[v0] Adding new conversation:", newConversation)
       setConversations((prev) => [newConversation, ...prev])
       setActiveConversationId(newConversation.id)
     } catch (error) {
       console.error("[v0] Error creating conversation:", error)
+      const errorMessage = error instanceof Error ? error.message : "Failed to create conversation"
       toast({
         title: "Error",
-        description: "Failed to create conversation",
+        description: errorMessage,
         variant: "destructive",
       })
     }
@@ -199,7 +211,7 @@ export function ChatInterface() {
     if (!authData) return
 
     try {
-      const response = await deleteConversation(authData.ownerId, authData.tenantId, id)
+      const response = await deleteConversation(id)
 
       if (!response.success) {
         throw new Error(response.error)
@@ -223,7 +235,7 @@ export function ChatInterface() {
     if (!authData) return
 
     try {
-      const response = await createFolder(authData.ownerId, authData.tenantId, name)
+      const response = await createFolder(name)
 
       if (!response.success || !response.data) {
         throw new Error(response.error)
@@ -249,13 +261,22 @@ export function ChatInterface() {
     if (!authData) return
 
     try {
-      const response = await deleteFolder(authData.ownerId, authData.tenantId, id)
+      const response = await deleteFolder(id)
 
       if (!response.success) {
         throw new Error(response.error)
       }
 
-      setConversations((prev) => prev.map((conv) => (conv.folderId === id ? { ...conv, folderId: null } : conv)))
+      setConversations((prev) =>
+        prev.map((conv) =>
+          conv.folderId === id
+            ? {
+                ...conv,
+                folderId: null,
+              }
+            : conv,
+        ),
+      )
       setFolders((prev) => prev.filter((f) => f.id !== id))
     } catch (error) {
       console.error("[v0] Error deleting folder:", error)
@@ -271,7 +292,7 @@ export function ChatInterface() {
     if (!authData) return
 
     try {
-      const response = await updateFolder(authData.ownerId, authData.tenantId, id, newName)
+      const response = await updateFolder(id, newName)
 
       if (!response.success) {
         throw new Error(response.error)
@@ -292,7 +313,7 @@ export function ChatInterface() {
     if (!authData) return
 
     try {
-      const response = await updateConversation(authData.ownerId, authData.tenantId, conversationId, {
+      const response = await updateConversation(conversationId, {
         folder_id: folderId,
       })
 
@@ -320,7 +341,7 @@ export function ChatInterface() {
     }
   }
 
-  const handleSendMessage = async (content: string) => {
+  const handleSendMessage = async (content: string, model?: string) => {
     if (!authData) return
 
     if (!activeConversationId) {
@@ -355,34 +376,60 @@ export function ChatInterface() {
     )
 
     try {
-      const response = await sendMessage(authData.ownerId, authData.tenantId, content, activeConversationId)
+      const userApiKey = localStorage.getItem("anthropic_api_key") || undefined
 
-      if (!response.success) {
-        throw new Error(response.error)
+      // Get conversation history for context
+      const conversationHistory =
+        activeConversation?.messages.map((m) => ({
+          role: m.role,
+          content: m.content,
+        })) || []
+
+      const agentResult = await processUserMessage(content, conversationHistory, model, userApiKey)
+
+      if (!agentResult.success || !agentResult.data) {
+        throw new Error(agentResult.error)
       }
 
-      if (response.data) {
-        const aiMessage: Message = {
-          id: response.spanId || `ai_${Date.now()}`,
-          role: "assistant",
-          content: response.data.content || response.data.message || "No response",
-          timestamp: new Date(),
-        }
+      const agentResponse: AgentResponse = agentResult.data
 
-        setConversations((prev) =>
-          prev.map((conv) =>
-            conv.id === activeConversationId
-              ? {
-                  ...conv,
-                  messages: [...conv.messages, aiMessage],
-                  updatedAt: new Date(),
-                  title:
-                    conv.messages.length === 1 ? content.slice(0, 50) + (content.length > 50 ? "..." : "") : conv.title,
-                }
-              : conv,
-          ),
-        )
+      // Format AI response with contract structure
+      let aiContent = `${agentResponse.understanding}\n\n`
+
+      if (agentResponse.needs_clarification) {
+        aiContent += `❓ ${agentResponse.clarification_question}`
+      } else {
+        aiContent += `📋 **Contrato estruturado:**\n`
+        aiContent += `**Quem:** ${agentResponse.contract.who.join(", ")}\n`
+        aiContent += `**Fez:** ${agentResponse.contract.did}\n`
+        aiContent += `**O que:** ${agentResponse.contract.this}\n`
+        aiContent += `**Quando:** ${agentResponse.contract.when}\n`
+        aiContent += `**Se ok:** ${agentResponse.contract.if_ok}\n`
+        aiContent += `**Se não:** ${agentResponse.contract.if_not}\n\n`
+        aiContent += `🏷️ **Flows:** ${agentResponse.flows.join(", ")}\n`
+        aiContent += `🎯 **Confiança:** ${(agentResponse.trust_score * 100).toFixed(0)}%`
       }
+
+      const aiMessage: Message = {
+        id: `ai_${Date.now()}`,
+        role: "assistant",
+        content: aiContent,
+        timestamp: new Date(),
+      }
+
+      setConversations((prev) =>
+        prev.map((conv) =>
+          conv.id === activeConversationId
+            ? {
+                ...conv,
+                messages: [...conv.messages, aiMessage],
+                updatedAt: new Date(),
+                title:
+                  conv.messages.length === 1 ? content.slice(0, 50) + (content.length > 50 ? "..." : "") : conv.title,
+              }
+            : conv,
+        ),
+      )
     } catch (error) {
       console.error("[v0] Error sending message:", error)
       toast({
@@ -393,15 +440,60 @@ export function ChatInterface() {
     }
   }
 
-  const handleAuth = (ownerId: string, tenantId: string) => {
-    const data = { ownerId, tenantId }
+  const handleAuth = (email: string, token: string) => {
+    const ownerId = email.split("@")[0]
+    const tenantId = email.split("@")[1]?.split(".")[0] || "minicontratos"
+
+    const data = { email, token, ownerId, tenantId }
     setAuthData(data)
     setIsAuthenticated(true)
     localStorage.setItem("minicontratos_auth", JSON.stringify(data))
   }
 
+  const handleRequestMagicLink = async (email: string) => {
+    const client = createLogLineClient()
+    await client.requestMagicLink(email)
+  }
+
+  const handleFlowClick = async (flowName: string) => {
+    if (!authData) return
+
+    try {
+      // Create new conversation
+      const response = await createConversation(`Summary: ${flowName}`)
+
+      if (!response.success || !response.data) {
+        throw new Error(response.error)
+      }
+
+      const newConversation: Conversation = {
+        id: response.data.id,
+        title: `Summary: ${flowName}`,
+        messages: [],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        folderId: null,
+      }
+
+      setConversations((prev) => [newConversation, ...prev])
+      setActiveConversationId(newConversation.id)
+
+      // Immediately send message with flow name for summary
+      setTimeout(() => {
+        handleSendMessage(flowName)
+      }, 100)
+    } catch (error) {
+      console.error("[v0] Error creating conversation from flow:", error)
+      toast({
+        title: "Error",
+        description: "Failed to create conversation",
+        variant: "destructive",
+      })
+    }
+  }
+
   if (!isAuthenticated || !authData) {
-    return <AuthScreen onAuth={handleAuth} />
+    return <AuthScreen onAuth={handleAuth} onRequestMagicLink={handleRequestMagicLink} />
   }
 
   return (
@@ -435,6 +527,7 @@ export function ChatInterface() {
               onMoveToFolder={handleMoveToFolder}
               userName={authData.ownerId}
               userRole="Member"
+              onFlowClick={handleFlowClick}
             />
           )}
         </div>

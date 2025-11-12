@@ -2,27 +2,23 @@
 
 import { createLogLineClient } from "@/lib/logline"
 
-const getApiKey = () => {
+const getClient = () => {
   const apiKey = process.env.LOGLINE_API_KEY
   if (!apiKey) {
-    throw new Error("LOGLINE_API_KEY environment variable is not set")
+    throw new Error("LOGLINE_API_KEY not configured")
   }
-  return apiKey
+  return createLogLineClient(apiKey)
 }
 
 // Conversation actions
-export async function getConversations(
-  ownerId: string,
-  tenantId: string,
-  filters?: {
-    folder_id?: string
-    date_from?: string
-    date_to?: string
-    limit?: number
-  },
-) {
+export async function getConversations(filters?: {
+  folder_id?: string
+  date_from?: string
+  date_to?: string
+  limit?: number
+}) {
   try {
-    const client = createLogLineClient(ownerId, tenantId, getApiKey())
+    const client = getClient()
     const response = await client.getConversations(filters)
     return { success: true, data: response.result }
   } catch (error) {
@@ -31,20 +27,43 @@ export async function getConversations(
   }
 }
 
-export async function createConversation(ownerId: string, tenantId: string, title: string, folderId?: string) {
+export async function createConversation(title: string, folderId?: string) {
   try {
-    const client = createLogLineClient(ownerId, tenantId, getApiKey())
+    console.log("[v0] createConversation called:", { title, folderId })
+    const client = getClient()
     const response = await client.createConversation(title, folderId)
-    return { success: true, data: response.result }
+    console.log("[v0] createConversation response:", response)
+
+    if (!response) {
+      throw new Error("No response from API")
+    }
+
+    // Check if response has result property or is the result itself
+    const result = response.result || response
+
+    // If result is missing required fields, create a minimal conversation object
+    const conversationData = result?.id
+      ? result
+      : {
+          id: response.span_id || `conv_${Date.now()}`,
+          title,
+          folder_id: folderId,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        }
+
+    console.log("[v0] createConversation final data:", conversationData)
+    return { success: true, data: conversationData }
   } catch (error) {
     console.error("[v0] createConversation error:", error)
-    return { success: false, error: error instanceof Error ? error.message : "Unknown error" }
+    const errorMessage = error instanceof Error ? error.message : String(error)
+    return { success: false, error: errorMessage || "Unknown error creating conversation" }
   }
 }
 
-export async function deleteConversation(ownerId: string, tenantId: string, conversationId: string) {
+export async function deleteConversation(conversationId: string) {
   try {
-    const client = createLogLineClient(ownerId, tenantId, getApiKey())
+    const client = getClient()
     await client.deleteConversation(conversationId)
     return { success: true }
   } catch (error) {
@@ -54,8 +73,6 @@ export async function deleteConversation(ownerId: string, tenantId: string, conv
 }
 
 export async function updateConversation(
-  ownerId: string,
-  tenantId: string,
   conversationId: string,
   updates: {
     title?: string
@@ -63,7 +80,7 @@ export async function updateConversation(
   },
 ) {
   try {
-    const client = createLogLineClient(ownerId, tenantId, getApiKey())
+    const client = getClient()
     await client.updateConversation(conversationId, updates)
     return { success: true }
   } catch (error) {
@@ -73,9 +90,9 @@ export async function updateConversation(
 }
 
 // Message actions
-export async function getMessages(ownerId: string, tenantId: string, conversationId: string, limit?: number) {
+export async function getMessages(conversationId: string, limit?: number) {
   try {
-    const client = createLogLineClient(ownerId, tenantId, getApiKey())
+    const client = getClient()
     const response = await client.getMessages(conversationId, limit)
     return { success: true, data: response.result }
   } catch (error) {
@@ -84,16 +101,11 @@ export async function getMessages(ownerId: string, tenantId: string, conversatio
   }
 }
 
-export async function sendMessage(
-  ownerId: string,
-  tenantId: string,
-  message: string,
-  conversationId?: string,
-  model?: string,
-) {
+export async function sendMessage(message: string, conversationId?: string, model?: string, userApiKey?: string) {
   try {
-    const client = createLogLineClient(ownerId, tenantId, getApiKey())
-    const response = await client.sendMessage(message, conversationId, model)
+    const client = getClient()
+    // Pass model and userApiKey to the client's sendMessage method
+    const response = await client.sendMessage(message, conversationId, model, userApiKey)
     return { success: true, data: response.result, spanId: response.span_id }
   } catch (error) {
     console.error("[v0] sendMessage error:", error)
@@ -102,9 +114,9 @@ export async function sendMessage(
 }
 
 // Folder actions
-export async function getFolders(ownerId: string, tenantId: string) {
+export async function getFolders() {
   try {
-    const client = createLogLineClient(ownerId, tenantId, getApiKey())
+    const client = getClient()
     const response = await client.getFolders()
     return { success: true, data: response.result }
   } catch (error) {
@@ -113,9 +125,9 @@ export async function getFolders(ownerId: string, tenantId: string) {
   }
 }
 
-export async function createFolder(ownerId: string, tenantId: string, name: string) {
+export async function createFolder(name: string) {
   try {
-    const client = createLogLineClient(ownerId, tenantId, getApiKey())
+    const client = getClient()
     const response = await client.createFolder(name)
     return { success: true, data: response.result }
   } catch (error) {
@@ -124,9 +136,9 @@ export async function createFolder(ownerId: string, tenantId: string, name: stri
   }
 }
 
-export async function deleteFolder(ownerId: string, tenantId: string, folderId: string) {
+export async function deleteFolder(folderId: string) {
   try {
-    const client = createLogLineClient(ownerId, tenantId, getApiKey())
+    const client = getClient()
     await client.deleteFolder(folderId)
     return { success: true }
   } catch (error) {
@@ -135,9 +147,9 @@ export async function deleteFolder(ownerId: string, tenantId: string, folderId: 
   }
 }
 
-export async function updateFolder(ownerId: string, tenantId: string, folderId: string, name: string) {
+export async function updateFolder(folderId: string, name: string) {
   try {
-    const client = createLogLineClient(ownerId, tenantId, getApiKey())
+    const client = getClient()
     await client.updateFolder(folderId, name)
     return { success: true }
   } catch (error) {
@@ -147,9 +159,9 @@ export async function updateFolder(ownerId: string, tenantId: string, folderId: 
 }
 
 // Search action
-export async function searchConversations(ownerId: string, tenantId: string, query: string) {
+export async function searchConversations(query: string) {
   try {
-    const client = createLogLineClient(ownerId, tenantId, getApiKey())
+    const client = getClient()
     const response = await client.searchConversations(query)
     return { success: true, data: response.result }
   } catch (error) {

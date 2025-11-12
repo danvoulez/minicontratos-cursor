@@ -7,19 +7,21 @@ import { Button } from "./ui/button"
 import { Textarea } from "./ui/textarea"
 import { Send, Sparkles } from "lucide-react"
 import { TemplateSelector } from "./template-selector"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select"
 
 interface MessageInputProps {
-  onSendMessage: (content: string) => void
+  onSendMessage: (content: string, model?: string) => void
 }
 
 export function MessageInput({ onSendMessage }: MessageInputProps) {
   const [input, setInput] = useState("")
   const [showTemplates, setShowTemplates] = useState(false)
+  const [selectedModel, setSelectedModel] = useState("claude-3-5-sonnet-20241022")
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   const handleSend = () => {
     if (input.trim()) {
-      onSendMessage(input.trim())
+      onSendMessage(input.trim(), selectedModel)
       setInput("")
       if (textareaRef.current) {
         textareaRef.current.style.height = "auto"
@@ -56,15 +58,30 @@ export function MessageInput({ onSendMessage }: MessageInputProps) {
           onSelectTemplate={handleTemplateSelect}
         />
         <div className="flex gap-3 items-end">
-          <Textarea
-            ref={textareaRef}
-            value={input}
-            onChange={handleInput}
-            onKeyDown={handleKeyDown}
-            placeholder="Type your message... (Shift+Enter for new line)"
-            className="min-h-[56px] max-h-[200px] resize-none rounded-xl bg-muted/50 border-muted"
-            rows={1}
-          />
+          <div className="relative flex-1">
+            <Textarea
+              ref={textareaRef}
+              value={input}
+              onChange={handleInput}
+              onKeyDown={handleKeyDown}
+              placeholder="Type your message... (Shift+Enter for new line)"
+              className="min-h-[56px] max-h-[200px] resize-none rounded-xl bg-muted/50 border-muted pr-[160px]"
+              rows={1}
+            />
+            <div className="absolute right-3 top-3">
+              <Select value={selectedModel} onValueChange={setSelectedModel}>
+                <SelectTrigger className="w-[140px] h-8 text-xs bg-background/80 backdrop-blur-sm border-muted">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="claude-3-5-sonnet-20241022">Sonnet 3.5</SelectItem>
+                  <SelectItem value="claude-3-5-haiku-20241022">Haiku 3.5</SelectItem>
+                  <SelectItem value="claude-3-opus-20240229">Opus 3</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          {/* </CHANGE> */}
           <div className="flex gap-2">
             <Button
               onClick={() => setShowTemplates(!showTemplates)}
