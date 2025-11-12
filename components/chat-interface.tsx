@@ -70,12 +70,6 @@ export function ChatInterface() {
   }, [])
 
   useEffect(() => {
-    if (activeConversationId && activeConversation && activeConversation.messages.length === 0) {
-      loadMessagesData(activeConversationId)
-    }
-  }, [activeConversationId])
-
-  useEffect(() => {
     if (isAuthenticated && authData) {
       loadData()
     }
@@ -439,6 +433,8 @@ export function ChatInterface() {
               onDeleteFolder={handleDeleteFolder}
               onRenameFolder={handleRenameFolder}
               onMoveToFolder={handleMoveToFolder}
+              userName={authData.ownerId}
+              userRole="Member"
             />
           )}
         </div>

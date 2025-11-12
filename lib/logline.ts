@@ -53,7 +53,9 @@ class LogLineClient {
 
     console.log("[v0] Sending span to:", url)
     console.log("[v0] Span intent:", span.intent)
+    console.log("[v0] Span payload:", JSON.stringify(span.payload))
     console.log("[v0] Span metadata:", spanWithAuth.metadata)
+    console.log("[v0] Complete span body:", JSON.stringify(spanWithAuth, null, 2))
 
     const response = await fetch(url, {
       method: "POST",

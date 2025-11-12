@@ -5,7 +5,7 @@ import { createLogLineClient } from "@/lib/logline"
 const getApiKey = () => {
   const apiKey = process.env.LOGLINE_API_KEY
   if (!apiKey) {
-    return "demo_key"
+    throw new Error("LOGLINE_API_KEY environment variable is not set")
   }
   return apiKey
 }
