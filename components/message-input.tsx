@@ -1,0 +1,85 @@
+"use client"
+
+import type React from "react"
+
+import { useState, useRef, type KeyboardEvent } from "react"
+import { Button } from "./ui/button"
+import { Textarea } from "./ui/textarea"
+import { Send, Sparkles } from "lucide-react"
+import { TemplateSelector } from "./template-selector"
+
+interface MessageInputProps {
+  onSendMessage: (content: string) => void
+}
+
+export function MessageInput({ onSendMessage }: MessageInputProps) {
+  const [input, setInput] = useState("")
+  const [showTemplates, setShowTemplates] = useState(false)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
+
+  const handleSend = () => {
+    if (input.trim()) {
+      onSendMessage(input.trim())
+      setInput("")
+      if (textareaRef.current) {
+        textareaRef.current.style.height = "auto"
+      }
+    }
+  }
+
+  const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault()
+      handleSend()
+    }
+  }
+
+  const handleInput = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setInput(e.target.value)
+    // Auto-resize textarea
+    e.target.style.height = "auto"
+    e.target.style.height = `${Math.min(e.target.scrollHeight, 200)}px`
+  }
+
+  const handleTemplateSelect = (template: string) => {
+    setInput(template)
+    setShowTemplates(false)
+    textareaRef.current?.focus()
+  }
+
+  return (
+    <div className="border-t p-4">
+      <div className="max-w-3xl mx-auto">
+        <TemplateSelector
+          open={showTemplates}
+          onOpenChange={setShowTemplates}
+          onSelectTemplate={handleTemplateSelect}
+        />
+        <div className="flex gap-2">
+          <Textarea
+            ref={textareaRef}
+            value={input}
+            onChange={handleInput}
+            onKeyDown={handleKeyDown}
+            placeholder="Type your message... (Shift+Enter for new line)"
+            className="min-h-[60px] max-h-[200px] resize-none"
+            rows={1}
+          />
+          <div className="flex flex-col gap-2">
+            <Button
+              onClick={() => setShowTemplates(!showTemplates)}
+              variant="outline"
+              size="icon"
+              className="h-[28px] w-[60px] shrink-0"
+            >
+              <Sparkles className="h-4 w-4" />
+            </Button>
+            <Button onClick={handleSend} disabled={!input.trim()} size="icon" className="h-[28px] w-[60px] shrink-0">
+              <Send className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
