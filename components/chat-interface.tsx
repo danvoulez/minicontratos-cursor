@@ -70,6 +70,12 @@ export function ChatInterface() {
   }, [])
 
   useEffect(() => {
+    if (activeConversationId && activeConversation && activeConversation.messages.length === 0) {
+      loadMessagesData(activeConversationId)
+    }
+  }, [activeConversationId])
+
+  useEffect(() => {
     if (isAuthenticated && authData) {
       loadData()
     }
