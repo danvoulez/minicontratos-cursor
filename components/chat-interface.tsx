@@ -440,20 +440,8 @@ export function ChatInterface() {
     }
   }
 
-  const handleAuth = (email: string, token: string) => {
-    const ownerId = email.split("@")[0]
-    const tenantId = email.split("@")[1]?.split(".")[0] || "minicontratos"
-
-    const data = { email, token, ownerId, tenantId }
-    setAuthData(data)
-    setIsAuthenticated(true)
-    localStorage.setItem("minicontratos_auth", JSON.stringify(data))
-  }
-
-  const handleRequestMagicLink = async (email: string) => {
-    const client = createLogLineClient()
-    await client.requestMagicLink(email)
-  }
+  // Auth is handled by LogLine Auth Frontend via redirect
+  // These handlers are no longer needed but kept for backwards compatibility
 
   const handleFlowClick = async (flowName: string) => {
     if (!authData) return
@@ -493,7 +481,7 @@ export function ChatInterface() {
   }
 
   if (!isAuthenticated || !authData) {
-    return <AuthScreen onAuth={handleAuth} onRequestMagicLink={handleRequestMagicLink} />
+    return <AuthScreen />
   }
 
   return (
