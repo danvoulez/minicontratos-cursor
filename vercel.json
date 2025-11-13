@@ -1,0 +1,12 @@
+{
+  "buildCommand": "npm run build",
+  "devCommand": "npm run dev",
+  "installCommand": "npm install",
+  "framework": "nextjs",
+  "regions": ["iad1"],
+  "env": {
+    "NEXT_PUBLIC_API_URL": "https://qo960fhrv0.execute-api.us-east-1.amazonaws.com",
+    "NEXT_PUBLIC_GOOGLE_CLIENT_ID": "206533069705-vpr05og8c8faijssgkkka2itkr0epupm.apps.googleusercontent.com"
+  }
+}
+

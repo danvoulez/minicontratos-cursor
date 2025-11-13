@@ -1,0 +1,9 @@
+aws_region         = "us-east-1"
+project_name       = "minicontratos"
+environment        = "production"
+github_repo_url    = "https://github.com/danvoulez/minicontratos-platform"
+logline_api_url    = "https://qo960fhrv0.execute-api.us-east-1.amazonaws.com"
+google_client_id   = "206533069705-vpr05og8c8faijssgkkka2itkr0epupm.apps.googleusercontent.com"
+logline_api_key    = "your_logline_api_key_here"
+anthropic_api_key  = "your_anthropic_api_key_here"
+
