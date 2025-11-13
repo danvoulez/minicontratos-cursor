@@ -83,10 +83,23 @@ class LogLineClient {
   }
 
   // Auth operations
-  async requestMagicLink(email: string): Promise<any> {
+  async requestMagicLink(email: string, redirectUri?: string): Promise<any> {
+    const body: any = { 
+      email,
+      app_id: "minicontratos",
+      app_name: "Minicontratos",
+    }
+    
+    // Add redirect_uri if provided or use current origin
+    if (redirectUri) {
+      body.redirect_uri = redirectUri
+    } else if (typeof window !== "undefined") {
+      body.redirect_uri = `${window.location.origin}/auth/callback`
+    }
+    
     return this.request("/auth/magic-link", {
       method: "POST",
-      body: JSON.stringify({ email }),
+      body: JSON.stringify(body),
     })
   }
 

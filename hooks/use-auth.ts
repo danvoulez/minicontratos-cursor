@@ -38,9 +38,14 @@ export function useAuth() {
     localStorage.removeItem("minicontratos_user")
   }
 
+  // Magic link is handled by LogLine Auth Frontend
+  // This function is kept for backwards compatibility but not used
   const requestMagicLink = async (email: string) => {
-    const client = createLogLineClient()
-    return client.requestMagicLink(email)
+    console.warn("requestMagicLink: Auth is handled by LogLine Auth Frontend. Redirecting...")
+    const authFrontendUrl = process.env.NEXT_PUBLIC_LOGLINE_AUTH_URL || process.env.NEXT_PUBLIC_AUTH_FRONTEND_URL
+    if (authFrontendUrl) {
+      window.location.href = `${authFrontendUrl}/auth?app_id=minicontratos&redirect_uri=${encodeURIComponent(window.location.origin + "/auth/callback")}`
+    }
   }
 
   const verifyAndLogin = async (token: string) => {
