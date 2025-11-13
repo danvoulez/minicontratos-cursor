@@ -9,10 +9,16 @@ type AuthScreenProps = {
 
 export function AuthScreen({ onAuth, onRequestMagicLink }: AuthScreenProps) {
   useEffect(() => {
-    // Redirect to LogLine Auth Frontend
-    const authFrontendUrl = process.env.NEXT_PUBLIC_AUTH_FRONTEND_URL || "https://logline-id.vercel.app"
+    // Get LogLine Auth Frontend URL from environment variable
+    // This should be set in Vercel environment variables
+    const authFrontendUrl = process.env.NEXT_PUBLIC_LOGLINE_AUTH_URL || process.env.NEXT_PUBLIC_AUTH_FRONTEND_URL
     const appId = process.env.NEXT_PUBLIC_LOGLINE_APP_ID || "minicontratos"
     const redirectUri = encodeURIComponent(`${window.location.origin}/auth/callback`)
+    
+    if (!authFrontendUrl) {
+      console.error("NEXT_PUBLIC_LOGLINE_AUTH_URL or NEXT_PUBLIC_AUTH_FRONTEND_URL must be set")
+      return
+    }
     
     // Redirect to LogLine Auth Frontend
     window.location.href = `${authFrontendUrl}/auth?app_id=${appId}&redirect_uri=${redirectUri}`
