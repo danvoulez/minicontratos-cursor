@@ -14,7 +14,11 @@ export default function AuthCallback() {
 
     if (token) {
       verifyAndLogin(token)
-        .then(() => {
+        .then((result) => {
+          // Store JWT token in cookie for server-side actions
+          if (result.token || token) {
+            document.cookie = `logline_token=${result.token || token}; path=/; max-age=86400; SameSite=Lax`
+          }
           router.push("/")
         })
         .catch((error) => {

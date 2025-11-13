@@ -47,13 +47,14 @@ export function useAuth() {
     const client = createLogLineClient()
     const result = await client.verifyToken(token)
 
-    if (result.email) {
-      const ownerId = result.email.split("@")[0]
-      const tenantId = result.email.split("@")[1]?.split(".")[0] || "minicontratos"
+    if (result.email || result.logline_id) {
+      const email = result.email || `${result.logline_id}@logline.world`
+      const ownerId = result.logline_id || result.email?.split("@")[0] || "unknown"
+      const tenantId = result.email?.split("@")[1]?.split(".")[0] || "minicontratos"
 
       login({
-        email: result.email,
-        token,
+        email,
+        token, // JWT token from auth
         ownerId,
         tenantId,
       })

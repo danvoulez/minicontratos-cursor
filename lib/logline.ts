@@ -25,15 +25,21 @@ export type SpanResponse = {
 
 class LogLineClient {
   private apiKey: string | null
+  private jwtToken: string | null
   private baseUrl: string
 
-  constructor(apiKey: string | null = null, baseUrl: string = LOGLINE_API_URL) {
+  constructor(apiKey: string | null = null, jwtToken: string | null = null, baseUrl: string = LOGLINE_API_URL) {
     this.apiKey = apiKey || LOGLINE_API_KEY || null
+    this.jwtToken = jwtToken || null
     this.baseUrl = baseUrl
   }
 
   setApiKey(apiKey: string) {
     this.apiKey = apiKey
+  }
+
+  setJwtToken(token: string) {
+    this.jwtToken = token
   }
 
   async request(endpoint: string, options: RequestInit = {}): Promise<any> {
@@ -44,11 +50,14 @@ class LogLineClient {
       ...((options.headers as Record<string, string>) || {}),
     }
 
-    if (this.apiKey) {
+    // Priority: JWT token > API key
+    if (this.jwtToken) {
+      headers.Authorization = `Bearer ${this.jwtToken}`
+    } else if (this.apiKey) {
       headers.Authorization = `ApiKey ${this.apiKey}`
     }
 
-    console.log("[v0] LogLine request:", { url, hasApiKey: !!this.apiKey })
+    console.log("[v0] LogLine request:", { url, hasJwt: !!this.jwtToken, hasApiKey: !!this.apiKey })
 
     const response = await fetch(url, {
       ...options,
@@ -56,7 +65,7 @@ class LogLineClient {
     })
 
     if (response.status === 401) {
-      throw new Error("Unauthorized - Invalid API key")
+      throw new Error("Unauthorized - Invalid token or API key")
     }
 
     if (!response.ok) {
@@ -162,52 +171,6 @@ class LogLineClient {
           has_user_key: !!userApiKey,
         },
       },
-    })
-  }
-
-  // Onboarding
-  async onboardApp(appName: string, email: string): Promise<any> {
-    return this.request("/onboarding", {
-      method: "POST",
-      body: JSON.stringify({ app_name: appName, email }),
-    })
-  }
-
-  // Span operations
-  private generateSpanId(): string {
-    return `span_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-  }
-
-  async writeSpan(spanData: SpanPayload): Promise<SpanResponse> {
-    if (!spanData.span.context) {
-      throw new Error("Span must have a context")
-    }
-    if (!spanData.span.response) {
-      throw new Error("Span must have a response")
-    }
-
-    const spanWithId = {
-      span: {
-        id: spanData.span.id || this.generateSpanId(),
-        timestamp: spanData.span.timestamp || new Date().toISOString(),
-        ...spanData.span,
-      },
-    }
-
-    return this.request("/spans", {
-      method: "POST",
-      body: JSON.stringify(spanWithId),
-    })
-  }
-
-  async getSpans(params?: { type?: string; limit?: number }): Promise<any> {
-    const queryParams = new URLSearchParams()
-    if (params?.type) queryParams.append("type", params.type)
-    if (params?.limit) queryParams.append("limit", params.limit.toString())
-
-    const queryString = queryParams.toString()
-    return this.request(`/spans${queryString ? `?${queryString}` : ""}`, {
-      method: "GET",
     })
   }
 
@@ -412,8 +375,8 @@ class LogLineClient {
   }
 }
 
-export function createLogLineClient(apiKey: string | null = null): LogLineClient {
-  return new LogLineClient(apiKey)
+export function createLogLineClient(apiKey: string | null = null, jwtToken: string | null = null): LogLineClient {
+  return new LogLineClient(apiKey, jwtToken)
 }
 
 export { LogLineClient }

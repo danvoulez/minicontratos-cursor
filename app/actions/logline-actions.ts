@@ -1,13 +1,21 @@
 "use server"
 
 import { createLogLineClient } from "@/lib/logline"
+import { cookies } from "next/headers"
 
-const getClient = () => {
-  const apiKey = process.env.LOGLINE_API_KEY
-  if (!apiKey) {
-    throw new Error("LOGLINE_API_KEY not configured")
+const getClient = async () => {
+  // Try to get JWT token from cookies (set after auth)
+  const cookieStore = await cookies()
+  const jwtToken = cookieStore.get("logline_token")?.value || null
+  
+  // Fallback to API key if no JWT token
+  const apiKey = process.env.LOGLINE_API_KEY || null
+  
+  if (!jwtToken && !apiKey) {
+    throw new Error("No authentication available. Please log in or configure LOGLINE_API_KEY")
   }
-  return createLogLineClient(apiKey)
+  
+  return createLogLineClient(apiKey, jwtToken)
 }
 
 // Conversation actions
@@ -18,7 +26,7 @@ export async function getConversations(filters?: {
   limit?: number
 }) {
   try {
-    const client = getClient()
+    const client = await getClient()
     const response = await client.getConversations(filters)
     return { success: true, data: response.result }
   } catch (error) {
@@ -30,7 +38,7 @@ export async function getConversations(filters?: {
 export async function createConversation(title: string, folderId?: string) {
   try {
     console.log("[v0] createConversation called:", { title, folderId })
-    const client = getClient()
+    const client = await getClient()
     const response = await client.createConversation(title, folderId)
     console.log("[v0] createConversation response:", response)
 
@@ -63,7 +71,7 @@ export async function createConversation(title: string, folderId?: string) {
 
 export async function deleteConversation(conversationId: string) {
   try {
-    const client = getClient()
+    const client = await getClient()
     await client.deleteConversation(conversationId)
     return { success: true }
   } catch (error) {
@@ -80,7 +88,7 @@ export async function updateConversation(
   },
 ) {
   try {
-    const client = getClient()
+    const client = await getClient()
     await client.updateConversation(conversationId, updates)
     return { success: true }
   } catch (error) {
@@ -92,7 +100,7 @@ export async function updateConversation(
 // Message actions
 export async function getMessages(conversationId: string, limit?: number) {
   try {
-    const client = getClient()
+    const client = await getClient()
     const response = await client.getMessages(conversationId, limit)
     return { success: true, data: response.result }
   } catch (error) {
@@ -103,7 +111,7 @@ export async function getMessages(conversationId: string, limit?: number) {
 
 export async function sendMessage(message: string, conversationId?: string, model?: string, userApiKey?: string) {
   try {
-    const client = getClient()
+    const client = await getClient()
     // Pass model and userApiKey to the client's sendMessage method
     const response = await client.sendMessage(message, conversationId, model, userApiKey)
     return { success: true, data: response.result, spanId: response.span_id }
@@ -116,7 +124,7 @@ export async function sendMessage(message: string, conversationId?: string, mode
 // Folder actions
 export async function getFolders() {
   try {
-    const client = getClient()
+    const client = await getClient()
     const response = await client.getFolders()
     return { success: true, data: response.result }
   } catch (error) {
@@ -127,7 +135,7 @@ export async function getFolders() {
 
 export async function createFolder(name: string) {
   try {
-    const client = getClient()
+    const client = await getClient()
     const response = await client.createFolder(name)
     return { success: true, data: response.result }
   } catch (error) {
@@ -138,7 +146,7 @@ export async function createFolder(name: string) {
 
 export async function deleteFolder(folderId: string) {
   try {
-    const client = getClient()
+    const client = await getClient()
     await client.deleteFolder(folderId)
     return { success: true }
   } catch (error) {
@@ -149,7 +157,7 @@ export async function deleteFolder(folderId: string) {
 
 export async function updateFolder(folderId: string, name: string) {
   try {
-    const client = getClient()
+    const client = await getClient()
     await client.updateFolder(folderId, name)
     return { success: true }
   } catch (error) {
@@ -161,7 +169,7 @@ export async function updateFolder(folderId: string, name: string) {
 // Search action
 export async function searchConversations(query: string) {
   try {
-    const client = getClient()
+    const client = await getClient()
     const response = await client.searchConversations(query)
     return { success: true, data: response.result }
   } catch (error) {
